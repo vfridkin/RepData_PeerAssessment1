@@ -1,0 +1,65 @@
+---
+title: "Reproducible Research: Peer Assessment 1"
+author: "Vlad Fridkin"
+date: "January 6, 2016"
+output: html_document
+---
+
+
+## Loading and preprocessing the data
+Assuming the data **activity.csv** is in the same directory, load the data into **activity** and then convert the date:
+```{r, echo = TRUE, }
+activity <- read.csv("activity.csv")
+activity$date <- as.Date(activity$date, "%Y-%m-%d")
+```
+
+## What is mean total number of steps taken per day?
+In preparation, remove observations with NA and store in **activity2**, then check no NA values remain: 
+```{r, echo = TRUE, }
+activity2 <- activity[!is.na(activity$steps),]
+anyNA(activity2)
+```
+To calculate the mean per day, first calculate the total number of steps taken per day. Load the **plyr** package to use function **ddply** and store the result in **stepsPerDay**:
+```{r, echo = TRUE, warning = FALSE}
+library(plyr)
+stepsPerDay <- ddply(activity2, "date", summarise, steps = sum(steps))
+```    
+Create a histogram and show the mean and median as vertical lines and report the values in the legend:
+```{r, echo = TRUE}
+s <- stepsPerDay$steps #store steps in shorthand vector s
+hist(s, main = "Steps per day", xlab = "steps")
+abline(v = mean(s), lwd = 2, col = "red")
+abline(v = median(s), lwd = 2, lty = 2, col = "blue")
+
+mean_s <- paste("mean", prettyNum(as.integer(mean(s)), big.mark = ","))
+median_s <- paste("median", prettyNum(median(s), big.mark = ","))
+
+legend("topright", legend = c(mean_s, median_s), 
+           lwd = 2, lty = c(1,2), col = c("red", "blue"))
+```
+
+## What is the average daily activity pattern?
+Store the average steps by interval over all days in **stepsPerIntervalAvg**.  Calculate the maximum interval and show together with a time series plot:
+```{r, echo = TRUE}
+stepsPerIntervalAvg <- ddply(activity2, "interval", summarise, steps = mean(steps))
+maxInterval <- with(stepsPerIntervalAvg, interval[steps == max(steps)])
+with(stepsPerIntervalAvg, {
+     plot(steps~interval, type="l", 
+          main = "Number of steps averaged over all days", ylab = "Steps", xlab = "Interval")
+})
+points(100, maxInterval, col = "red")
+legend("topright", legend = paste("Maximum", maxInterval), lwd = 2, col = "red")
+```
+
+To create a lattice plot, load **lattice**
+```{r, warning = FALSE, echo = TRUE}
+library(lattice)
+xyplot(s~activity2$interval, type = "l", ylab = "Number of steps", xlab = "Interval")
+```
+
+
+## Imputing missing values
+
+
+
+## Are there differences in activity patterns between weekdays and weekends?

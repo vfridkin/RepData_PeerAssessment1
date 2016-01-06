@@ -1,14 +1,25 @@
 ---
 title: "Reproducible Research: Peer Assessment 1"
-output: 
-  html_document:
-    keep_md: true
+author: "Vlad Fridkin"
+date: "January 6, 2016"
+output: html_document
 ---
 
 
 ## Loading and preprocessing the data
+Data: activity.csv
 
+Assuming it is in working directory:
 
+```{r}
+activity <- read.csv("activity.csv")
+```
+  
+Convert date:
+
+```{r}
+activity$date <- as.Date(activity$date, "%Y-%m-%d")
+```
 
 ## What is mean total number of steps taken per day?
 
