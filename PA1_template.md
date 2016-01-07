@@ -1,0 +1,185 @@
+---
+title: "Reproducible Research: Peer Assessment 1"
+author: "Vlad Fridkin"
+date: "January 6, 2016"
+output: html_document
+---
+
+
+## Loading and preprocessing the data
+Assuming the data _activity.csv_ is in the same directory, load the data into **activity** and then convert the date:
+
+```r
+activity <- read.csv("activity.csv")
+activity$date <- as.Date(activity$date, "%Y-%m-%d")
+```
+
+## What is mean total number of steps taken per day?
+In preparation, remove observations with NA and store in **activity2**, then check no NA values remain: 
+
+```r
+activity2 <- activity[!is.na(activity$steps),]
+anyNA(activity2)
+```
+
+```
+## [1] FALSE
+```
+To calculate the mean per day, first calculate the total number of steps taken per day. Load the _plyr_ package to use function _ddply_ and store the result in **stepsPerDay**:
+
+```r
+library(plyr)
+stepsPerDay <- ddply(activity2, "date", summarise, steps = sum(steps))
+```
+### Histogram
+Here the mean and median are combined with the histogram, with values in the legend:
+
+```r
+s <- stepsPerDay$steps #store steps in shorthand vector s
+hist(s, main = "Steps per day", xlab = "steps")
+abline(v = mean(s), lwd = 2, col = "red")
+abline(v = median(s), lwd = 2, lty = 2, col = "blue")
+
+mean_s <- paste("mean", prettyNum(as.integer(mean(s)), big.mark = ","))
+median_s <- paste("median", prettyNum(median(s), big.mark = ","))
+
+legend("topright", legend = c(mean_s, median_s), 
+           lwd = 2, lty = c(1,2), col = c("red", "blue"))
+```
+
+![plot of chunk unnamed-chunk-4](figure/unnamed-chunk-4-1.png) 
+
+### Mean and median
+
+```r
+mean_s
+```
+
+```
+## [1] "mean 10,766"
+```
+
+```r
+median_s
+```
+
+```
+## [1] "median 10,765"
+```
+
+## What is the average daily activity pattern?
+Store the average steps by interval over all days in **stepsPerIntervalAvg**.  Calculate the maximum interval, steps and show together with a time series plot.
+
+### Time series plot
+
+```r
+stepsPerIntervalAvg <- ddply(activity2, "interval", summarise, steps = mean(steps))
+maxSteps <- max(stepsPerIntervalAvg$steps)
+maxInterval <- with(stepsPerIntervalAvg, interval[steps == maxSteps])
+with(stepsPerIntervalAvg, {
+     plot(steps~interval, type="l", 
+          main = "Number of steps averaged over all days", ylab = "Steps", xlab = "Interval")
+})
+points(maxInterval, maxSteps, pch = 1, col = "red")
+legend("topright", legend = paste("Max Interval", maxInterval), pch = 1, col = "red")
+```
+
+![plot of chunk unnamed-chunk-7](figure/unnamed-chunk-7-1.png) 
+
+### 5-minute interval with maximum average number of steps
+
+```r
+paste("Max Interval", maxInterval)
+```
+
+```
+## [1] "Max Interval 835"
+```
+
+## Imputing missing values
+The number of missing values:
+
+```r
+activityNA <- activity[is.na(activity$steps),]
+nrow(activityNA)
+```
+
+```
+## [1] 2304
+```
+
+### Strategy
+The strategy for imputing these NA values is to use the mean for each interval contained in **stepsPerIntervalAvg** above.  Specifically
+
+1. merge stepsPerIntervalAvg with activityNA into **merged**
+2. restructure **merged** for row bind with **activity2**
+3. row bind into **activity3**
+4. check **activity3** has the same dimensions as **activity** and contains no NA values
+
+For the restructure (2) load package _dplyr_.
+
+```r
+library(dplyr)
+merged <- merge(stepsPerIntervalAvg, activityNA,by.x = "interval", by.y = "interval") #1
+merged <- select(merged, steps=steps.x, date, interval) #2
+activity3 <- rbind(activity2, merged) #3
+identical(dim(activity3),dim(activity)) #4a Check same dimensions as activity
+```
+
+```
+## [1] TRUE
+```
+
+```r
+anyNA(activity3) #4b Check if contains NA values
+```
+
+```
+## [1] FALSE
+```
+
+### Histogram
+The histogram, mean and median of steps per day for **activity3** follows the same process as for **activity2**.
+
+```r
+stepsPerDay <- ddply(activity3, "date", summarise, steps = sum(steps))
+s <- stepsPerDay$steps #store steps in shorthand vector s
+hist(s, main = "Steps per day (imputed)", xlab = "steps")
+abline(v = mean(s), lwd = 2, col = "red")
+abline(v = median(s), lwd = 2, lty = 2, col = "blue")
+
+mean_s <- paste("mean", prettyNum(as.integer(mean(s)), big.mark = ","))
+median_s <- paste("median", prettyNum(median(s), big.mark = ","))
+
+legend("topright", legend = c(mean_s, median_s), 
+           lwd = 2, lty = c(1,2), col = c("red", "blue"))
+```
+
+![plot of chunk unnamed-chunk-11](figure/unnamed-chunk-11-1.png) 
+
+###Comparison with first histogram
+The mean and median have not changed significantly, indicating a balanced spread of intervals with NA.  The frequencies have increased due to the involvement of additional intervals that were NA previously.
+
+## Are there differences in activity patterns between weekdays and weekends?
+Use function _weekdays_ to add a new factor variable to **activity3**
+
+```r
+activity3$weekday <- ifelse(weekdays(activity3$date) %in% c("Saturday", "Sunday"), "weekend", "weekday")
+```
+
+### Panel plot
+To create a lattice plot, load _lattice_
+
+```r
+library(lattice)
+stepsPerDay <- ddply(activity3, c("weekday","interval"), summarise, steps = mean(steps))
+xyplot(steps~interval|weekday, stepsPerDay, type = "l", ylab = "Number of steps", xlab = "Interval", layout = c(1,2) )
+```
+
+![plot of chunk unnamed-chunk-13](figure/unnamed-chunk-13-1.png) 
+
+###Conclusion
+There are a number of seemingly interesting patterns:
+
+1. There is more consistent activity in daylight hours during weekends compared to weekdays.  This might be explained by people being randomly active during weekends, whereas during weekdays this is contrained in working hours for sedentary jobs.
+2. There is a higher peak and greater activity in the mornings for weekdays.  This might be explained by people going to work during weekdays and sleeping in on the weekends.
